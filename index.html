@@ -1,0 +1,74 @@
+<!doctype HTML>
+<html>
+
+<head>
+    <link rel="stylesheet" href="http://openlayers.org/en/v3.20.1/css/ol.css" type="text/css">
+    <link rel="stylesheet" type="text/css" href="index.css">
+    <link rel="stylesheet" href="jquery-ui/jquery-ui.css" type="text/css">
+
+</head>
+
+<body>
+    <div class="head">
+        <h1>Sportske aktivnosti</h1>
+
+    </div>
+    <div class="content">
+        <div class="layers-div">
+            <h1>Slojevi:</h1>
+            <input class="layer-chb" type="checkbox" value="0" checked><span>Open street maps</span><br>
+            <input class="layer-chb" type="checkbox" value="1"><span>Rute za trcanje</span><br>
+            <input class="layer-chb" type="checkbox" value="2"><span>Parkovi</span><br>
+            <input class="layer-chb" type="checkbox" value="3"><span>Tereni</span><br>
+            <input class="layer-chb" type="checkbox" value="4"><span>Zatvoreni objekti</span><br>
+            <hr>
+            <span id="mouse-coordinates">Koordinate: <span>0 / 0</span></span>
+            <hr>
+            <div>
+                <span>Prikaz informacija objekta</span><input class="layer-chb" type="checkbox" value="5">
+                <div class="radioBtns">
+                    <input type="radio" name="radGr" value="0" checked><span>Rute</span>
+                    <input type="radio" name="radGr" value="1"><span>Parkovi</span>
+                    <input type="radio" name="radGr" value="2"><span>Tereni</span>
+                    <input type="radio" name="radGr" value="3"><span>Zatvoreni</span>
+                </div>
+                <div id="feature-info"></div>
+            </div>
+            <div>
+                <span>Filtriranje</span><input class="filter-chb" type="checkbox" value="5">
+                <div class="filterRadioBtns">
+                    <input type="radio" name="filterRadGr" value="0" checked><span>U radijusu</span>
+                    <!--<input type="radio" name="radGr" value="1"><span>Parkovi</span>
+                    <input type="radio" name="radGr" value="2"><span>Tereni</span>
+                    <input type="radio" name="radGr" value="3"><span>Zatvoreni</span>-->
+                </div>
+                <div id="filter-config"></div>
+                <form class="form-inline">
+                    <label>Tip filtriranja &nbsp;</label>
+                    <select id="geometryType">
+                       <option value="Point">Tacka</option>
+                       <option value="LineString">Linija</option>
+                       <option value="Polygon">Poligon</option>
+                       <option value="Circle">Krug</option>
+                     </select>
+                </form>
+                <!--<div id="sliderContainer">
+                    <span class="sliderBounds" id="sliderMinVal">1</span>
+                    <div id="slider"></div>
+                    <span class="sliderBounds" id="sliderMaxVal">5</span>
+                </div>-->
+            </div>
+
+        </div>
+        <div class="map-div">
+            <div id="map" class="map"></div>
+        </div>
+    </div>
+    <script src="jquery-2.2.1.min.js"></script>
+    <script src="jquery-ui/jquery-ui.js"></script>
+    <script src="http://openlayers.org/en/v3.20.1/build/ol.js" type="text/javascript"></script>
+
+    <script src="index.js"></script>
+</body>
+
+</html>

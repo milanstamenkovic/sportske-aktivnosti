@@ -1,0 +1,93 @@
+body {
+    background-color: aliceblue
+}
+
+.head > h1 {    
+    font-size: 50px;
+    font-style: oblique;
+    margin: 15px 0px
+}
+
+.head {
+    text-align: center;
+}
+
+.content {
+    border: 1px solid black;
+    width: 100%;
+}
+
+.layers-div {
+    width: 20%;
+    float:left;
+    text-align: left;    
+}
+
+.layers-div > input {
+    margin: 10px 0px 10px 30px;
+}
+
+.layers-div > h1 {
+    margin: 10px 0px 10px 10px;
+}
+
+.layers-div > span {
+    margin-left: 10px;
+    font-size: 25px;
+}
+
+.layers-div > div > span {
+    margin: 10px 10px;
+    font-size: 25px;
+}
+
+.map-div {
+    text-align: center;
+    float: right;
+    width: 80%;
+}
+
+.map {
+    border-top: 2px solid black;
+}
+
+#feature-info {
+    margin: 20px 10px;
+}
+
+.radioBtns {    
+    margin: 10px 7px 20px 7px;
+    display: none;
+}
+
+.radioBtns > span {
+    font-size: 18px !important;
+}
+
+iframe {
+    height: 90px !important;
+}
+
+/*-------------------------------------------*/
+
+#slider {
+    width: 85%;
+    /*margin: 0 auto;*/
+    float: left;
+    margin-left: 13px;
+    margin-right: 13px;
+}
+
+.sliderBounds {
+    float: left;
+}
+
+#sliderContainer {
+    margin: 10px;
+}
+
+
+
+/*---------------------------------------------*/
+
+
