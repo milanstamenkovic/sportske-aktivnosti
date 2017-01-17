@@ -68,8 +68,11 @@ iframe {
     height: 90px !important;
 }
 
-/*-------------------------------------------*/
+.filterContainer{
+    margin: 10px;
+}
 
+/*-------------------------------------------*/
 #slider {
     width: 85%;
     /*margin: 0 auto;*/
@@ -85,7 +88,6 @@ iframe {
 #sliderContainer {
     margin: 10px;
 }
-
 
 
 /*---------------------------------------------*/
