@@ -15,36 +15,29 @@
     </div>
     <div class="content">
         <div class="layers-div">
+            <div class="webServiceBtns">
+                <input type="radio" name="web-service" value="0" checked><span style="margin-right: 20px; font-size: 30px"><b>WMS</b></span>
+                <input type="radio" name="web-service" value="1"><span style="font-size: 30px"><b>WFS</b></span>
+            </div>
             <h1>Slojevi:</h1>
-            <input class="layer-chb" type="checkbox" value="0" checked><span>Open street maps</span><br>
-            <input class="layer-chb" type="checkbox" value="1"><span>Rute za trcanje</span><br>
-            <input class="layer-chb" type="checkbox" value="2"><span>Parkovi</span><br>
-            <input class="layer-chb" type="checkbox" value="3"><span>Tereni</span><br>
-            <input class="layer-chb" type="checkbox" value="4"><span>Zatvoreni objekti</span><br>
+            <input id="map-chb" type="checkbox" checked><span>Open street maps</span><br>
+            <input class="layer-chb" type="checkbox" name="sportske-aktivnosti:rute" value="1"><span>Rute za trcanje</span><br>
+            <input class="layer-chb" type="checkbox" name="sportske-aktivnosti:parkovi" value="2"><span>Parkovi</span><br>
+            <input class="layer-chb" type="checkbox" name="sportske-aktivnosti:tereni" value="3"><span>Tereni</span><br>
+            <input class="layer-chb" type="checkbox" name="sportske-aktivnosti:zatvoreni" value="4"><span>Zatvoreni objekti</span><br>
             <hr>
             <span id="mouse-coordinates">Koordinate: <span>0 / 0</span></span>
             <hr>
             <div>
-                <span>Prikaz informacija objekta</span><input class="layer-chb" type="checkbox" value="5">
-                <div class="radioBtns">
-                    <input type="radio" name="radGr" value="0" checked><span>Rute</span>
-                    <input type="radio" name="radGr" value="1"><span>Parkovi</span>
-                    <input type="radio" name="radGr" value="2"><span>Tereni</span>
-                    <input type="radio" name="radGr" value="3"><span>Zatvoreni</span>
-                </div>
+                <span>Prikaz informacija o objektima</span>
+                <input id="feature-info-chb" type="checkbox" checked>
                 <div id="feature-info"></div>
             </div>
             <div>
-                <span>Filtriranje</span><input class="filter-chb" type="checkbox" value="5">
-                <!--<div class="filterRadioBtns">
-                    <input type="radio" name="filterRadGr" value="0" checked><span>U radijusu</span>
-                    <input type="radio" name="radGr" value="1"><span>Parkovi</span>
-                    <input type="radio" name="radGr" value="2"><span>Tereni</span>
-                    <input type="radio" name="radGr" value="3"><span>Zatvoreni</span>
-                </div>-->
-                <form class="form-inline filterContainer">
-                    <label>Tip filtriranja &nbsp;</label>
+                <form class="filterContainer">
+                    <span>Tip filtriranja &nbsp;</span>
                     <select id="geometryType">
+                       <option value="None">Nijedan</option>
                        <option value="Point">Tacka</option>
                        <option value="LineString">Linija</option>
                        <option value="Polygon">Poligon</option>

@@ -1,62 +1,156 @@
-var geoURL = 'http://localhost:8080/geoserver/wms';
+var geoUrlWMS = 'http://localhost:8080/geoserver/wms';
+var geoUrlWFS = 'http://localhost:8080/geoserver/ows?service=WFS&version=1.0.0&request=GetFeature&typename=';
+
 var osm = new ol.layer.Tile({ source: new ol.source.OSM() });
-var routesSrc = initializeWMSSource('sportske-aktivnosti:rute');
-var parksSrc = initializeWMSSource('sportske-aktivnosti:parkovi');
-var playgroundsSrc = initializeWMSSource('sportske-aktivnosti:tereni');
-var closedSrc = initializeWMSSource('sportske-aktivnosti:zatvoreni');
 
-var routes = new ol.layer.Tile({ source: routesSrc });
-var parks = new ol.layer.Tile({ source: parksSrc });
-var playgrounds = new ol.layer.Tile({ source: playgroundsSrc });
-var closedPlaces = new ol.layer.Tile({ source: closedSrc });
-
-var getFeatureInfo = false;
+var styles = {
+    "parkovi": new ol.style.Style({
+        stroke: new ol.style.Stroke({
+            color: 'rgba(0, 0, 0, 0.8)',
+            width: 1
+        }),
+        fill: new ol.style.Fill({
+            color: 'rgba(0, 0, 0, 0.2)'
+        })
+    }),
+    "tereni": new ol.style.Style({
+        stroke: new ol.style.Stroke({
+            color: 'rgba(0, 255, 0, 1.0)',
+            width: 1
+        }),
+        fill: new ol.style.Fill({
+            color: 'rgba(0, 255, 0, 0.2)'
+        })
+    }),
+    "zatvoreni": new ol.style.Style({
+        image: new ol.style.RegularShape({
+            fill: new ol.style.Fill({ color: 'red' }),
+            points: 4,
+            radius: 5,
+            angle: Math.PI / 4
+        })
+    })
+};
+var isWMS = true;
 var filtering = false;
-var draw;
+var activeLayers = {};
+var lastFilter;
 
-var sources = [routesSrc, parksSrc, playgroundsSrc, closedSrc];
-var index = 0;
-
-
-parks.setOpacity(0.65);
-playgrounds.setOpacity(0.8);
-
-function initializeWMSSource(layer) {
-    return new ol.source.TileWMS({
-        url: geoURL,
+function getWMSSource(layerName, filter) {
+    var params = {
+        url: geoUrlWMS,
         params: {
-            'LAYERS': layer,
+            'LAYERS': layerName,
             'VERSION': '1.1.1',
             'TILED': true,
             'TRANSPARENT': 'true'
         },
         serverType: 'geoserver'
-    });
+    }
+    if (filter) {
+        $.extend(params.params, {
+            'cql_filter': filter
+        })
+    }
+
+    return new ol.source.TileWMS(params);
+}
+
+function getWFSSource(layerName, filter) {
+    var params = {
+        format: new ol.format.GeoJSON(),
+        url: geoUrlWFS + layerName + '&outputFormat=application%2Fjson'
+    }
+    if (filter)
+        params.url += '&cql_filter=' + encodeURIComponent(filter);
+    return new ol.source.Vector(params);
 }
 
 
+function showLayers(map, filter) {
+    var layerNames = getCheckedLayerNames();
+    layerNames.forEach(function (name) {
+        showLayer(map, name, filter);
+    });
+}
 
+function showLayer(map, name, filter) {
+    var layer;
+    if (isWMS) {
+        var source = getWMSSource(name, filter);
+        layer = new ol.layer.Tile({ source: source });
+    }
+    else {
+        var source = getWFSSource(name, filter);
+        var style = styles[name.split(":")[1]];
+        layer = new ol.layer.Vector({ source: source, style: style });
+    }
+
+    layer.setOpacity(0.8);
+    activeLayers[name] = layer;
+    map.addLayer(layer);
+}
+
+function removeLayersFromMap(map) {
+    for (var layerName in activeLayers) {
+        if (activeLayers.hasOwnProperty(layerName)) {
+            map.removeLayer(activeLayers[layerName]);
+        }
+    }
+    activeLayers = {};
+}
+
+function getCheckedLayerNames() {
+    $checkedLayers = $(".layer-chb:checked");
+    var layerNames = $checkedLayers.map(function () {
+        return this.name;
+    });
+    return $.makeArray(layerNames);
+}
+
+function createFilter(geometry, geometryType) {
+
+    switch (geometryType) {
+        case "Point":
+            break;
+        case "Polygon":
+            lastFilter = getQueryWithinPolygon(geometry);
+        case "Circle":
+            lastFilter = getQueryWithinRadius(geometry);
+    }
+    return lastFilter;
+}
+
+function getQueryWithinRadius(geometry) {
+    var circularPolygon = ol.geom.Polygon.fromCircle(geometry);
+    return getQueryWithinPolygon(circularPolygon);
+}
+
+function getQueryWithinPolygon(geometry) {
+    var coordsString = "";
+    var coordinates = geometry.getCoordinates()[0];
+    for (var i = 0; i < coordinates.length; i++) {
+        var coords = ol.proj.transform(coordinates[i], 'EPSG:3857', 'EPSG:4326');
+        coordsString += coords[0] + " " + coords[1] + ",";
+    }
+    coordsString = coordsString.substring(0, coordsString.length - 1);
+    var filterString = "WITHIN(geom, POLYGON((" + coordsString + ")))";
+
+    return filterString;
+}
 
 $(document).ready(function () {
-    /* ------------------------------------------------- */
-    var raster = new ol.layer.Tile({
-        source: new ol.source.OSM()
-    });
 
     var source = new ol.source.Vector({ wrapX: false });
-
     var vector = new ol.layer.Vector({
         source: source
     });
-
-    /* ---------------------------------------------------*/
 
     var map = new ol.Map({
         target: 'map',
         renderer: 'canvas',
         layers: [
             osm,
-            raster,
             vector
         ],
         view: new ol.View({
@@ -65,22 +159,10 @@ $(document).ready(function () {
         })
     });
 
-
-    var destLoc = [-338.1008, 43.3406];
-    var currentLoc = [-338.1000, 43.2948];
-
-    var ext = ol.extent.boundingExtent([destLoc, currentLoc]);
-    ext = ol.proj.transformExtent(ext, ol.proj.get('EPSG:4326'), ol.proj.get('EPSG:3857'));
-
-
-    //map.getView().fit(ext, map.getSize());
-
     map.addControl(new ol.control.OverviewMap({ collapsed: false }));
-    map.addInteraction(new ol.interaction.Select({ condition: ol.events.condition.mouseMove }));
 
     map.on('singleclick', function (event) {
-
-        if (!filtering) {
+        if ($("#feature-info-chb").prop("checked")) {
             var animation = ol.animation.pan({
                 easing: eval(ol.easing['easeout']),
                 source: map.getView().getCenter()
@@ -89,18 +171,20 @@ $(document).ready(function () {
             map.beforeRender(animation);
             map.getView().setCenter(event.coordinate);
 
-            if (getFeatureInfo) {
-                var url = sources[index].getGetFeatureInfoUrl(
+            $('#feature-info').html("");
+            map.forEachLayerAtPixel(event.pixel, function (layer) {
+                var url = layer.getSource().getGetFeatureInfoUrl(
                     event.coordinate, map.getView().getResolution(), 'EPSG:3857',
                     { 'INFO_FORMAT': 'text/html' });
 
-                if (url)
-                    $('#feature-info').html('<iframe seamless src="' + url + '"></iframe>');
-            }
-        } else {
-
+                if (url) {
+                    var featureInfoHtml = $('#feature-info').html();
+                    $('#feature-info').html(featureInfoHtml + '<iframe seamless src="' + url + '"></iframe>');
+                }
+            }, null, function (layer) {
+                return layer != osm;
+            });
         }
-
     });
 
     map.on('pointermove', function (event) {
@@ -108,79 +192,96 @@ $(document).ready(function () {
         $('#mouse-coordinates').text('Koordinate: ' + ol.coordinate.toStringXY(coord, 4));
     });
 
-    $('.filter-chb').click(function () {
-        filtering = !filtering;
-        filtering ? addInteraction() : map.removeInteraction(draw);
-        var display = filtering ? "block" : "none";
-        $(".filterContainer").css("display", display);
+    $('.webServiceBtns input').click(function () {
+        if (!(isWMS && this.value == 0) && !(!isWMS && this.value == 1)) {
+            removeLayersFromMap(map);
+            $(".layer-chb").prop("checked", false);
+            isWMS = this.value == 0;
+        }
+
+        $("#feature-info-chb").prop("checked", isWMS);
     });
 
-    $('.layer-chb').click(function () {
-        switch (parseInt($(this).val())) {
-            case 0:
+    $("#feature-info-chb").click(function () {
+        if (isWMS)
+            if (filtering) {
                 if (this.checked) {
-                    map.addLayer(osm);
-                    map.removeLayer(routes);
-                    map.removeLayer(parks);
-                    map.removeLayer(playgrounds);
-                    map.removeLayer(closedPlaces);
-                    for (var i = 1; i < 5; i++)
-                        $('input[value=' + i + ']').prop('checked', !($('input[value=' + i + ']').prop('checked'))).trigger('click');
+                    map.removeInteraction(draw);
+
                 }
-                else
-                    map.removeLayer(osm);
-                break;
-            case 1:
-                this.checked ? map.addLayer(routes) : map.removeLayer(routes);
-                break;
-            case 2:
-                this.checked ? map.addLayer(parks) : map.removeLayer(parks);
-                break;
-            case 3:
-                this.checked ? map.addLayer(playgrounds) : map.removeLayer(playgrounds);
-                break;
-            case 4:
-                this.checked ? map.addLayer(closedPlaces) : map.removeLayer(closedPlaces);
-                break;
-            case 5:
-                getFeatureInfo = !getFeatureInfo;
-                if (!getFeatureInfo) {
-                    $('.radioBtns').hide();
-                    $('#feature-info iframe').remove();
+                else {
+                    addInteraction();
+                    $('#feature-info').html("");
+
                 }
-                else
-                    $('.radioBtns').show();
-                break;
+            }
+            else {
+                this.checked = true;
+            }
+        else {
+            this.checked = false;
         }
     });
 
-    $('.radioBtns input').click(function () {
-        index = this.value;
+    $('#map-chb').click(function () {
+        if (this.checked) {
+            map.addLayer(osm);
+            showLayers(map);
+        }
+        else {
+            map.removeLayer(osm);
+            removeLayersFromMap(map);
+
+        }
     });
 
-    /* ------------------------------ */
+    $('.layer-chb').click(function () {
+        var layerName = this.name;
+        if (this.checked) {
+            showLayer(map, layerName, lastFilter);
+        }
+        else {
+            map.removeLayer(activeLayers[layerName]);
+            delete activeLayers[layerName];
+        }
+    });
 
-
-
+    var draw;
     function addInteraction() {
         var typeSelect = $('#geometryType')[0];
         var value = typeSelect.value;
         if (value !== 'None') {
+            filtering = true;
+            $("#feature-info-chb").prop("checked", false);
+
             draw = new ol.interaction.Draw({
                 source: source,
-                type: /** @type {ol.geom.GeometryType} */ (typeSelect.value),
+                type: (typeSelect.value),
             });
 
             draw.on("drawend", function (event) {
+                removeLayersFromMap(map);
+
                 var feature = event.feature;
                 var geometry = feature.getGeometry();
-                var coordinates = geometry.getCoordinates();
+                var filterString = createFilter(geometry, value)
+                showLayers(map, filterString);
             });
 
             map.addInteraction(draw);
         }
-    }
+        else {
+            $("#feature-info-chb").prop("checked", true);
 
+            filtering = false;
+            lastFilter = undefined;
+            map.removeInteraction(draw);
+            map.removeLayer(vector);
+            removeLayersFromMap(map);
+            showLayers(map);
+        }
+
+    }
 
     $('#geometryType')[0].onchange = function () {
         map.removeInteraction(draw);
@@ -189,76 +290,26 @@ $(document).ready(function () {
 
 });
 
+// function initSlider(config) {
+//     var min = 0;
+//     var max = 10;
+
+//     if (config) {
+//         if (config.min)
+//             min = config.min;
+//         if (config.max)
+//             max = config.max;
+//     }
 
 
+//     $("#sliderMinVal").html(min);
+//     $("#sliderMaxVal").html(max);
 
-function initSlider(config) {
-    var min = 0;
-    var max = 10;
+//     $.extend(config, {
+//         animate: "fast",
+//         min: min,
+//         max: max
+//     });
 
-    if (config) {
-        if (config.min)
-            min = config.min;
-        if (config.max)
-            max = config.max;
-    }
-
-
-    $("#sliderMinVal").html(min);
-    $("#sliderMaxVal").html(max);
-
-    $.extend(config, {
-        animate: "fast",
-        min: min,
-        max: max
-    });
-
-    $("#slider").slider(config);
-}
-
-function initCenterMarker(map, pos) {
-    var iconFeature = new ol.Feature({
-        geometry: new ol.geom.Point(pos),
-        name: 'Referentna tacka'
-    });
-
-    var iconStyle = new ol.style.Style({
-        image: new ol.style.Icon(/** @type {olx.style.IconOptions} */({
-            // anchor: [1, 1],
-            // anchorXUnits: 'pixel',
-            // anchorYUnits: 'pixel',
-            opacity: 0.75,
-            src: 'center_eye.png',
-            // size: [100, 100],
-            // the scale factor
-            scale: 0.1
-        }))
-    });
-
-    iconFeature.setStyle(iconStyle);
-
-    var vectorSource = new ol.source.Vector({
-        features: [iconFeature],
-
-    });
-
-    var vectorLayer = new ol.layer.Vector({
-        source: vectorSource,
-        renderers: ['Canvas', 'VML']
-
-    });
-
-    map.addLayer(vectorLayer);
-}
-
-
-
-
-
-
-
-
-
-
-
-
+//     $("#slider").slider(config);
+// }
