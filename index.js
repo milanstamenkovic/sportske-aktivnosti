@@ -47,11 +47,19 @@ function getWMSSource(layerName, filter) {
         },
         serverType: 'geoserver'
     }
+    var extraQuery = getQueryString();
     if (filter) {
+        if (extraQuery != "")
+            extraQuery = " AND " + extraQuery;
         $.extend(params.params, {
-            'cql_filter': filter
+            'cql_filter': filter + extraQuery
         })
     }
+    else
+        if (extraQuery != "")
+            $.extend(params.params, {
+                'cql_filter': extraQuery
+            })
 
     return new ol.source.TileWMS(params);
 }
@@ -63,6 +71,9 @@ function getWFSSource(layerName, filter) {
     }
     if (filter)
         params.url += '&cql_filter=' + encodeURIComponent(filter);
+    var extraQuery = getQueryString();
+    params.url += encodeURIComponent(filter ? " AND " + extraQuery : '&cql_filter=' + extraQuery);
+
     return new ol.source.Vector(params);
 }
 
@@ -85,11 +96,16 @@ function showLayer(map, name, filter) {
         var style = styles[name.split(":")[1]];
         layer = new ol.layer.Vector({ source: source, style: style });
     }
+    console.log(layer);
     layer.setOpacity(0.8);
     activeLayers[name] = layer;
     map.addLayer(layer);
 }
 
+function getQueryString() {
+    var query = $("#queryString")[0].value;
+    return query;
+}
 function removeLayersFromMap(map) {
     for (var layerName in activeLayers) {
         if (activeLayers.hasOwnProperty(layerName)) {
@@ -110,6 +126,9 @@ function getCheckedLayerNames() {
 function createFilter(geometry, geometryType) {
 
     switch (geometryType) {
+        case "LineString":
+            lastFilter = getQueryIntersectsLine(geometry);
+            break;
         case "Point":
             break;
         case "Polygon":
@@ -122,21 +141,31 @@ function createFilter(geometry, geometryType) {
     return lastFilter;
 }
 
+function getCoordinatesAsString(coordinates) {
+    var coordsString = "";
+    for (var i = 0; i < coordinates.length; i++) {
+        var coords = ol.proj.transform(coordinates[i], 'EPSG:3857', 'EPSG:4326');
+        coordsString += coords[0] + " " + coords[1] + ",";
+    }
+    coordsString = coordsString.substring(0, coordsString.length - 1);
+
+    return coordsString;
+}
+
+function getQueryIntersectsLine(geometry) {
+    var coordinates = geometry.getCoordinates();
+    var filterString = "INTERSECTS(geom, MULTILINESTRING((" + getCoordinatesAsString(coordinates) + ")))";
+    return filterString;
+}
+
 function getQueryWithinRadius(geometry) {
     var circularPolygon = ol.geom.Polygon.fromCircle(geometry);
     return getQueryWithinPolygon(circularPolygon);
 }
 
 function getQueryWithinPolygon(geometry) {
-    var coordsString = "";
     var coordinates = geometry.getCoordinates()[0];
-    for (var i = 0; i < coordinates.length; i++) {
-        var coords = ol.proj.transform(coordinates[i], 'EPSG:3857', 'EPSG:4326');
-        coordsString += coords[0] + " " + coords[1] + ",";
-    }
-    coordsString = coordsString.substring(0, coordsString.length - 1);
-    var filterString = "WITHIN(geom, POLYGON((" + coordsString + ")))";
-
+    var filterString = "WITHIN(geom, POLYGON((" + getCoordinatesAsString(coordinates) + ")))";
     return filterString;
 }
 
@@ -173,6 +202,9 @@ $(document).ready(function () {
             map.getView().setCenter(event.coordinate);
 
             $('#feature-info').html("");
+            map.forEachFeatureAtPixel(event.pixel, function (feature) {
+
+            });
             map.forEachLayerAtPixel(event.pixel, function (layer) {
                 var url = layer.getSource().getGetFeatureInfoUrl(
                     event.coordinate, map.getView().getResolution(), 'EPSG:3857',
@@ -260,7 +292,7 @@ $(document).ready(function () {
                 type: (typeSelect.value),
             });
 
-            draw.on("drawstart", function(event){
+            draw.on("drawstart", function (event) {
                 source.clear();
             });
             draw.on("drawend", function (event) {
