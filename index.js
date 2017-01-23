@@ -72,7 +72,8 @@ function getWFSSource(layerName, filter) {
     if (filter)
         params.url += '&cql_filter=' + encodeURIComponent(filter);
     var extraQuery = getQueryString();
-    params.url += encodeURIComponent(filter ? " AND " + extraQuery : '&cql_filter=' + extraQuery);
+    if(extraQuery != "")
+        params.url += filter ? encodeURIComponent(" AND " + extraQuery) : '&cql_filter=' + encodeURIComponent(extraQuery);
 
     return new ol.source.Vector(params);
 }
