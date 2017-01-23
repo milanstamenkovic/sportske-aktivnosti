@@ -85,7 +85,6 @@ function showLayer(map, name, filter) {
         var style = styles[name.split(":")[1]];
         layer = new ol.layer.Vector({ source: source, style: style });
     }
-
     layer.setOpacity(0.8);
     activeLayers[name] = layer;
     map.addLayer(layer);
@@ -115,8 +114,10 @@ function createFilter(geometry, geometryType) {
             break;
         case "Polygon":
             lastFilter = getQueryWithinPolygon(geometry);
+            break;
         case "Circle":
             lastFilter = getQueryWithinRadius(geometry);
+            break;
     }
     return lastFilter;
 }
@@ -259,11 +260,13 @@ $(document).ready(function () {
                 type: (typeSelect.value),
             });
 
+            draw.on("drawstart", function(event){
+                source.clear();
+            });
             draw.on("drawend", function (event) {
                 removeLayersFromMap(map);
 
-                var feature = event.feature;
-                var geometry = feature.getGeometry();
+                var geometry = event.feature.getGeometry();
                 var filterString = createFilter(geometry, value)
                 showLayers(map, filterString);
             });
