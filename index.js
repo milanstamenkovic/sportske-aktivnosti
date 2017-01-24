@@ -72,7 +72,7 @@ function getWFSSource(layerName, filter) {
     if (filter)
         params.url += '&cql_filter=' + encodeURIComponent(filter);
     var extraQuery = getQueryString();
-    if(extraQuery != "")
+    if (extraQuery != "")
         params.url += filter ? encodeURIComponent(" AND " + extraQuery) : '&cql_filter=' + encodeURIComponent(extraQuery);
 
     return new ol.source.Vector(params);
@@ -278,6 +278,11 @@ $(document).ready(function () {
             map.removeLayer(activeLayers[layerName]);
             delete activeLayers[layerName];
         }
+    });
+
+    $("#textQueryBtn").click(function () {
+        removeLayersFromMap(map);
+        showLayers(map);
     });
 
     var draw;
