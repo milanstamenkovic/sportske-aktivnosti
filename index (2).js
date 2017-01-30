@@ -34,10 +34,9 @@ var styles = {
 var isWMS = true;
 var filtering = false;
 var activeLayers = {};
-var geometryFilter;
-var within = true;
+var lastFilter;
 
-function getWMSSource(layerName) {
+function getWMSSource(layerName, filter) {
     var params = {
         url: geoUrlWMS,
         params: {
@@ -48,61 +47,57 @@ function getWMSSource(layerName) {
         },
         serverType: 'geoserver'
     }
-    params = makeFilterQuery(params);
+    var extraQuery = getQueryString();
+    if (filter) {
+        if (extraQuery != "")
+            extraQuery = " AND " + extraQuery;
+        $.extend(params.params, {
+            'cql_filter': filter + extraQuery
+        })
+    }
+    else
+        if (extraQuery != "")
+            $.extend(params.params, {
+                'cql_filter': extraQuery
+            })
+
     return new ol.source.TileWMS(params);
 }
 
-function getWFSSource(layerName) {
+function getWFSSource(layerName, filter) {
     var params = {
         format: new ol.format.GeoJSON(),
         url: geoUrlWFS + layerName + '&outputFormat=application%2Fjson'
     }
-    params = makeFilterQuery(params)
+    if (filter)
+        params.url += '&cql_filter=' + encodeURIComponent(filter);
+    var extraQuery = getQueryString();
+    if (extraQuery != "")
+        params.url += filter ? encodeURIComponent(" AND " + extraQuery) : '&cql_filter=' + encodeURIComponent(extraQuery);
+
     return new ol.source.Vector(params);
 }
 
-function makeFilterQuery(params) {
-    var filter = "";
-    var stringFilter = getQueryString();
 
-    if (geometryFilter && stringFilter != "")
-        filter = geometryFilter + " AND " + stringFilter;
-    else {
-        if (geometryFilter)
-            filter = geometryFilter;
-        if (stringFilter != "")
-            filter = stringFilter;
-    }
-
-    if (filter != "") {
-        if (isWMS)
-            $.extend(params.params, {
-                'cql_filter': filter
-            })
-        else
-            params.url += '&cql_filter=' + encodeURIComponent(filter);
-    }
-    return params;
-}
-
-function showLayers(map) {
+function showLayers(map, filter) {
     var layerNames = getCheckedLayerNames();
     layerNames.forEach(function (name) {
-        showLayer(map, name);
+        showLayer(map, name, filter);
     });
 }
 
-function showLayer(map, name) {
+function showLayer(map, name, filter) {
     var layer;
     if (isWMS) {
-        var source = getWMSSource(name);
+        var source = getWMSSource(name, filter);
         layer = new ol.layer.Tile({ source: source });
     }
     else {
-        var source = getWFSSource(name);
+        var source = getWFSSource(name, filter);
         var style = styles[name.split(":")[1]];
         layer = new ol.layer.Vector({ source: source, style: style });
     }
+    console.log(layer);
     layer.setOpacity(0.8);
     activeLayers[name] = layer;
     map.addLayer(layer);
@@ -129,22 +124,22 @@ function getCheckedLayerNames() {
     return $.makeArray(layerNames);
 }
 
-function createGeometryFilter(geometry, geometryType) {
+function createFilter(geometry, geometryType) {
 
     switch (geometryType) {
         case "LineString":
-            geometryFilter = getQueryIntersectsLine(geometry);
+            lastFilter = getQueryIntersectsLine(geometry);
             break;
         case "Point":
-            geometryFilter = getQueryFromPoint(geometry);
             break;
         case "Polygon":
-            geometryFilter = getQueryWithinPolygon(geometry);
+            lastFilter = getQueryWithinPolygon(geometry);
             break;
         case "Circle":
-            geometryFilter = getQueryWithinRadius(geometry);
+            lastFilter = getQueryWithinRadius(geometry);
             break;
     }
+    return lastFilter;
 }
 
 function getCoordinatesAsString(coordinates) {
@@ -154,12 +149,13 @@ function getCoordinatesAsString(coordinates) {
         coordsString += coords[0] + " " + coords[1] + ",";
     }
     coordsString = coordsString.substring(0, coordsString.length - 1);
+
     return coordsString;
 }
 
 function getQueryIntersectsLine(geometry) {
     var coordinates = geometry.getCoordinates();
-    var filterString = (within ? "INTERSECTS" : "DISJOINT") + "(geom, MULTILINESTRING((" + getCoordinatesAsString(coordinates) + ")))";
+    var filterString = "INTERSECTS(geom, MULTILINESTRING((" + getCoordinatesAsString(coordinates) + ")))";
     return filterString;
 }
 
@@ -170,26 +166,25 @@ function getQueryWithinRadius(geometry) {
 
 function getQueryWithinPolygon(geometry) {
     var coordinates = geometry.getCoordinates()[0];
-    var filterString = (within ? "WITHIN" : "DISJOINT") + "(geom, POLYGON((" + getCoordinatesAsString(coordinates) + ")))";
+    var filterString = "WITHIN(geom, POLYGON((" + getCoordinatesAsString(coordinates) + ")))";
     return filterString;
 }
 
 function getQueryFromPoint(geometry) {
-    var coordinates = ol.proj.transform(geometry.getCoordinates(), 'EPSG:3857', 'EPSG:4326');
-    var radius = ol.proj.transform([$("#radiusTxtBox")[0].value, 0], 'EPSG:3857', 'EPSG:4326')[0];
-    var filterString = (within ? "DWITHIN" : "BEYOND") + "(geom, POINT(" + coordinates[0] + " " + coordinates[1] + ")," + radius + ",meters)";
+    var coordinates = geometry.getCoordinates()[0];
+    var filterString = "DWITHIN(geom, POINT(" + getCoordinatesAsString(coordinates) + "), + " + "" + ", metres)";
     return filterString;
 }
 
 $(document).ready(function () {
 
     var overlay = new ol.Overlay({
-        element: document.getElementById('popup'),
-        autoPan: true,
-        autoPanAnimation: {
-            duration: 250
-        }
-    });
+            element: document.getElementById('popup'),
+            autoPan: true,
+            autoPanAnimation: {
+                duration: 250
+            }
+        });
 
     var source = new ol.source.Vector({ wrapX: false });
     var vector = new ol.layer.Vector({
@@ -238,55 +233,51 @@ $(document).ready(function () {
                 }, null, function (layer) {
                     return layer != osm;
                 });
-            } else {
-                var table = '';
-                map.forEachFeatureAtPixel(event.pixel, function (feature, layer) {
-                    console.log(feature);
+            } else { 
+                var table = ''; 
+                map.forEachFeatureAtPixel(event.pixel, function(feature, layer) {
+                    console.log(feature); 
                     var tmp = feature.f.split(".");
                     var featureName = tmp[0].charAt(0).toUpperCase() + tmp[0].slice(1);
                     table += '<table style="width:100%;border-collapse: collapse;">';
-                    table += '<tr><caption align="center";>' + featureName + '</caption></tr>';
-                    for (var property in feature.H) {
+                    table += '<tr><caption align="center";>' + featureName + '</caption></tr>'; 
+                    for (var property in feature.H) { 
                         if (property != 'geometry') {
-                            table += '<tr><td style="width:50%; border: 1px solid black; border-collapse: collapse;">' + property + '</td>' +
-                                '<td style="width:50%; border: 1px solid black; border-collapse: collapse;">' + feature.H[property] + '</td></tr>';
+                            table += '<tr><td style="width:50%; border: 1px solid black; border-collapse: collapse;">'+ property +'</td>' +
+                            '<td style="width:50%; border: 1px solid black; border-collapse: collapse;">'+ feature.H[property] +'</td></tr>';
                         }
                     }
-                    table += '</table><br>';
+                    table += '</table><br>'; 
                 });
                 if (table != '') {
                     $('#popup-content').html(table);
-                    overlay.setPosition(event.coordinate);
+                    overlay.setPosition(event.coordinate); 
                 }
-            }
-
+            } 
+            
         }
     });
 
-    $('#popup-closer').click(function () {
+    $('#popup-closer').click(function() {
         overlay.setPosition(undefined);
         this.blur();
         return false;
-    });
+    }); 
 
     map.on('pointermove', function (event) {
         var coord = ol.proj.transform(event.coordinate, 'EPSG:3857', 'EPSG:4326');
         $('#mouse-coordinates').text('Koordinate: ' + ol.coordinate.toStringXY(coord, 4));
     });
 
-    $('#withinGeometry')[0].onchange = function () {
-        within = this.value == 'Within';
-    };
-
     $('.webServiceBtns input').click(function () {
         if (!(isWMS && this.value == 0) && !(!isWMS && this.value == 1)) {
             removeLayersFromMap(map);
             $(".layer-chb").prop("checked", false);
             isWMS = this.value == 0;
-        }
+        } 
     });
 
-    $("#feature-info-chb").click(function () {
+    $("#feature-info-chb").click(function () { 
         if (filtering) {
             if (this.checked) {
                 map.removeInteraction(draw);
@@ -298,17 +289,25 @@ $(document).ready(function () {
         }
         else {
             this.checked = true;
-        }
+        } 
     });
 
     $('#map-chb').click(function () {
-        this.checked ? map.addLayer(osm) : map.removeLayer(osm);
+        if (this.checked) {
+            map.addLayer(osm);
+            showLayers(map);
+        }
+        else {
+            map.removeLayer(osm);
+            removeLayersFromMap(map);
+
+        }
     });
 
     $('.layer-chb').click(function () {
         var layerName = this.name;
         if (this.checked) {
-            showLayer(map, layerName, geometryFilter);
+            showLayer(map, layerName, lastFilter);
         }
         else {
             map.removeLayer(activeLayers[layerName]);
@@ -326,7 +325,7 @@ $(document).ready(function () {
         var typeSelect = $('#geometryType')[0];
         var value = typeSelect.value;
         if (value !== 'None') {
-            $('#withinGeometry').css("display", "inline")
+
             if (value == 'Point') {
                 $(".radiusForPoint").css("display", "block");
             }
@@ -348,8 +347,8 @@ $(document).ready(function () {
                 removeLayersFromMap(map);
 
                 var geometry = event.feature.getGeometry();
-                createGeometryFilter(geometry, value);
-                showLayers(map);
+                var filterString = createFilter(geometry, value)
+                showLayers(map, filterString);
             });
 
             map.addInteraction(draw);
@@ -358,13 +357,13 @@ $(document).ready(function () {
             $("#feature-info-chb").prop("checked", true);
 
             filtering = false;
-            geometryFilter = undefined;
+            lastFilter = undefined;
             map.removeInteraction(draw);
             map.removeLayer(vector);
             removeLayersFromMap(map);
             showLayers(map);
-            $('#withinGeometry').css("display", "none");
         }
+
     }
 
     $('#geometryType')[0].onchange = function () {
