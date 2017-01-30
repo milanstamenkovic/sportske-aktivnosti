@@ -4,8 +4,6 @@
 <head>
     <link rel="stylesheet" href="http://openlayers.org/en/v3.20.1/css/ol.css" type="text/css">
     <link rel="stylesheet" type="text/css" href="index.css">
-    <link rel="stylesheet" href="jquery-ui/jquery-ui.css" type="text/css">
-
 </head>
 
 <body>
@@ -44,8 +42,8 @@
                        <option value="Circle">Krug</option>
                      </select>
                 </form>
-                <div id="filter-config"></div>
             </div>
+            <div class="radiusForPoint">Poluprecnik:  <input type="text" id="radiusTxtBox">  m</div>
             <div style="margin-left:10px">
             Upit: <input type="text" id="queryString">
             <button id="textQueryBtn" type="button">Filtriraj</button>
@@ -56,9 +54,7 @@
         </div>
     </div>
     <script src="jquery-2.2.1.min.js"></script>
-    <script src="jquery-ui/jquery-ui.js"></script>
     <script src="http://openlayers.org/en/v3.20.1/build/ol.js" type="text/javascript"></script>
-
     <script src="index.js"></script>
 </body>
 
