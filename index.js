@@ -170,6 +170,12 @@ function getQueryWithinPolygon(geometry) {
     return filterString;
 }
 
+function getQueryFromPoint(geometry) {
+    var coordinates = geometry.getCoordinates()[0];
+    var filterString = "DWITHIN(geom, POINT(" + getCoordinatesAsString(coordinates) + "), + " + "" + ", metres)";
+    return filterString;
+}
+
 $(document).ready(function () {
 
     var source = new ol.source.Vector({ wrapX: false });
@@ -241,12 +247,10 @@ $(document).ready(function () {
             if (filtering) {
                 if (this.checked) {
                     map.removeInteraction(draw);
-
                 }
                 else {
                     addInteraction();
                     $('#feature-info').html("");
-
                 }
             }
             else {
@@ -290,6 +294,13 @@ $(document).ready(function () {
         var typeSelect = $('#geometryType')[0];
         var value = typeSelect.value;
         if (value !== 'None') {
+
+            if (value == 'Point') {
+                $(".radiusForPoint").css("display", "block");
+            }
+            else {
+                $(".radiusForPoint").css("display", "none");
+            }
             filtering = true;
             $("#feature-info-chb").prop("checked", false);
 
@@ -328,29 +339,4 @@ $(document).ready(function () {
         map.removeInteraction(draw);
         addInteraction();
     };
-
 });
-
-// function initSlider(config) {
-//     var min = 0;
-//     var max = 10;
-
-//     if (config) {
-//         if (config.min)
-//             min = config.min;
-//         if (config.max)
-//             max = config.max;
-//     }
-
-
-//     $("#sliderMinVal").html(min);
-//     $("#sliderMaxVal").html(max);
-
-//     $.extend(config, {
-//         animate: "fast",
-//         min: min,
-//         max: max
-//     });
-
-//     $("#slider").slider(config);
-// }

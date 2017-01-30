@@ -80,6 +80,10 @@ iframe {
     margin: 10px;
 }
 
+.radiusForPoint{
+    display: none;
+    margin: 10px;
+}
 .filter-chb {
 }
 
